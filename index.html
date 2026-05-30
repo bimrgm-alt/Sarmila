@@ -204,15 +204,18 @@
             width: 100px;
         }
         
-        /* Bottom Sheet Modal */
+        /* Bottom Sheet Modal & Opaque Overlay styling */
         .bottom-sheet-overlay {
             position: absolute;
             inset: 0;
-            background: rgba(0,0,0,0.4);
+            background: #F2F2F7; /* Solid opaque color matching iOS system background */
             z-index: 60;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.3s;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .dark .bottom-sheet-overlay {
+            background: #000000; /* Solid opaque black for Dark Mode */
         }
         .bottom-sheet-overlay.active {
             opacity: 1;
@@ -642,6 +645,7 @@
             return Math.max(0, totalMins / 60);
         }
 
+        // Formula: Salary = (Hours * Rate) + Travel
         function calculateSalary(hours, travel) {
             return (hours * state.settings.rate) + Number(travel || 0);
         }
