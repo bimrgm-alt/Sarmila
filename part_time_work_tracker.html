@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en" class="antialiased">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Work Tracker</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Tailwind Config for iOS specific colors and fonts -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+                    },
+                    colors: {
+                        ios: {
+                            bg: '#F2F2F7',
+                            bgDark: '#000000',
+                            card: '#FFFFFF',
+                            cardDark: '#1C1C1E',
+                            blue: '#007AFF',
+                            blueDark: '#0A84FF',
+                            green: '#34C759',
+                            red: '#FF3B30',
+                            gray: '#8E8E93',
+                            grayDark: '#98989D',
+                            border: '#C6C6C8',
+                            borderDark: '#38383A'
+                        }
+                    },
+                    boxShadow: {
+                        'ios': '0 4px 24px rgba(0,0,0,0.06)',
+                        'ios-dark': '0 4px 24px rgba(0,0,0,0.4)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Base & Resets */
+        :root {
+            --safe-top: env(safe-area-inset-top, 47px);
+            --safe-bottom: env(safe-area-inset-bottom, 34px);
+        }
+        
+        body {
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-y: none; /* Prevent pull-to-refresh on main body */
+        }
+
+        /* Hide scrollbar for clean UI */
+        ::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* App Container - simulates phone on desktop, full screen on mobile */
+        .app-container {
+            max-width: 430px; /* iPhone 15 Pro Max width */
+            margin: 0 auto;
+            height: 100dvh;
+            background-color: theme('colors.ios.bg');
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 40px rgba(0,0,0,0.1);
+        }
+
+        .dark .app-container {
+            background-color: theme('colors.ios.bgDark');
+            box-shadow: 0 0 40px rgba(0,0,0,0.5);
+        }
+
+        /* Screen Transitions */
+        .screen {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-top: calc(var(--safe-top) + 60px);
+            padding-bottom: calc(var(--safe-bottom) + 80px);
+            display: none;
+            opacity: 0;
+            transform: translateX(10px);
+            transition: opacity 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        .screen.active {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        /* Headers */
+        .ios-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: calc(var(--safe-top) + 60px);
+            padding-top: var(--safe-top);
+            background: rgba(242, 242, 247, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            z-index: 40;
+            display: flex;
+            align-items: center;
+            padding-inline: 20px;
+            border-bottom: 0.5px solid rgba(0,0,0,0.1);
+            transition: background 0.3s, border 0.3s;
+        }
+
+        .dark .ios-header {
+            background: rgba(0, 0, 0, 0.7);
+            border-bottom: 0.5px solid rgba(255,255,255,0.1);
+        }
+
+        /* Bottom Tab Bar */
+        .tab-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: calc(var(--safe-bottom) + 60px);
+            padding-bottom: var(--safe-bottom);
+            background: rgba(242, 242, 247, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 0.5px solid rgba(0,0,0,0.1);
+            z-index: 50;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+
+        .dark .tab-bar {
+            background: rgba(28, 28, 30, 0.85);
+            border-top: 0.5px solid rgba(255,255,255,0.1);
+        }
+
+        .tab-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: theme('colors.ios.gray');
+            font-size: 10px;
+            font-weight: 500;
+            gap: 4px;
+            width: 60px;
+            transition: color 0.2s, transform 0.2s;
+        }
+
+        .tab-item:active {
+            transform: scale(0.9);
+        }
+
+        .tab-item.active {
+            color: theme('colors.ios.blue');
+        }
+        .dark .tab-item.active {
+            color: theme('colors.ios.blueDark');
+        }
+
+        /* iOS Grouped List (Settings) */
+        .ios-list {
+            background-color: theme('colors.ios.card');
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+        .dark .ios-list {
+            background-color: theme('colors.ios.cardDark');
+        }
+
+        .ios-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 0.5px solid theme('colors.ios.border');
+            min-height: 44px;
+        }
+        .dark .ios-list-item { border-bottom: 0.5px solid theme('colors.ios.borderDark'); }
+        .ios-list-item:last-child { border-bottom: none; }
+
+        .ios-input {
+            text-align: right;
+            color: theme('colors.ios.gray');
+            background: transparent;
+            outline: none;
+            width: 100px;
+        }
+        
+        /* Bottom Sheet Modal */
+        .bottom-sheet-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 60;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .bottom-sheet-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .bottom-sheet {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: theme('colors.ios.bg');
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            z-index: 70;
+            transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            padding-bottom: var(--safe-bottom);
+        }
+        .dark .bottom-sheet {
+            background-color: theme('colors.ios.bgDark');
+        }
+        .bottom-sheet.active {
+            transform: translateY(0);
+        }
+
+        /* Custom Toggle Switch */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: theme('colors.ios.green');
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: theme('colors.ios.green');
+        }
+
+        /* Calendar Grid */
+        .cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            text-align: center;
+        }
+        .cal-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 16px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .cal-day.has-work::after {
+            content: '';
+            position: absolute;
+            bottom: 4px;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background-color: theme('colors.ios.blue');
+        }
+        .dark .cal-day.has-work::after { background-color: theme('colors.ios.blueDark'); }
+        
+        .cal-day.selected {
+            background-color: theme('colors.ios.blue');
+            color: white;
+            font-weight: bold;
+        }
+        .dark .cal-day.selected { background-color: theme('colors.ios.blueDark'); }
+        .cal-day.selected::after { background-color: white !important; }
+
+        /* Haptic Button Animation */
+        .btn-haptic {
+            transition: transform 0.1s, opacity 0.1s;
+        }
+        .btn-haptic:active {
+            transform: scale(0.96);
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-black text-black dark:text-white flex items-center justify-center min-h-screen">
+
+    <div class="app-container text-black dark:text-white transition-colors duration-300">
+        
+        <!-- Header -->
+        <header class="ios-header">
+            <h1 id="header-title" class="text-2xl font-bold tracking-tight">Dashboard</h1>
+            <button id="add-btn-header" class="btn-haptic ml-auto text-ios-blue dark:text-ios-blueDark" style="display: none;">
+                <i data-lucide="plus"></i>
+            </button>
+        </header>
+
+        <!-- ================= SCREEN 1: DASHBOARD ================= -->
+        <main id="screen-dashboard" class="screen active px-5">
+            <!-- Hero Earnings -->
+            <div class="mt-2 mb-6">
+                <p class="text-ios-gray font-medium text-sm uppercase tracking-wider mb-1">This Month</p>
+                <div class="flex items-baseline gap-1">
+                    <span id="dash-currency" class="text-3xl font-semibold text-ios-grayDark">$</span>
+                    <h2 id="dash-total-salary" class="text-5xl font-bold tracking-tight">0.00</h2>
+                </div>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="bg-ios-card dark:bg-ios-cardDark rounded-2xl p-4 shadow-ios dark:shadow-ios-dark">
+                    <div class="flex items-center gap-2 mb-2 text-ios-blue dark:text-ios-blueDark">
+                        <i data-lucide="clock" class="w-5 h-5"></i>
+                        <span class="font-semibold text-sm">Hours</span>
+                    </div>
+                    <p id="dash-total-hours" class="text-2xl font-bold">0<span class="text-sm font-normal text-ios-gray">h</span></p>
+                </div>
+                <div class="bg-ios-card dark:bg-ios-cardDark rounded-2xl p-4 shadow-ios dark:shadow-ios-dark">
+                    <div class="flex items-center gap-2 mb-2 text-ios-green">
+                        <i data-lucide="briefcase" class="w-5 h-5"></i>
+                        <span class="font-semibold text-sm">Shifts</span>
+                    </div>
+                    <p id="dash-total-shifts" class="text-2xl font-bold">0</p>
+                </div>
+                <div class="bg-ios-card dark:bg-ios-cardDark rounded-2xl p-4 shadow-ios dark:shadow-ios-dark">
+                    <div class="flex items-center gap-2 mb-2 text-orange-500">
+                        <i data-lucide="car" class="w-5 h-5"></i>
+                        <span class="font-semibold text-sm">Travel</span>
+                    </div>
+                    <p id="dash-total-travel" class="text-2xl font-bold">0.00</p>
+                </div>
+                <div class="bg-ios-card dark:bg-ios-cardDark rounded-2xl p-4 shadow-ios dark:shadow-ios-dark">
+                    <div class="flex items-center gap-2 mb-2 text-purple-500">
+                        <i data-lucide="trending-up" class="w-5 h-5"></i>
+                        <span class="font-semibold text-sm">Avg/Hr</span>
+                    </div>
+                    <p id="dash-avg-rate" class="text-2xl font-bold">0.00</p>
+                </div>
+            </div>
+
+            <!-- Weekly Goal Progress -->
+            <div class="bg-ios-card dark:bg-ios-cardDark rounded-2xl p-5 shadow-ios dark:shadow-ios-dark mb-6">
+                <div class="flex justify-between items-end mb-3">
+                    <div>
+                        <h3 class="font-semibold">Weekly Goal</h3>
+                        <p class="text-sm text-ios-gray" id="dash-goal-text">0 / 20 hours</p>
+                    </div>
+                    <span id="dash-goal-percent" class="text-xl font-bold text-ios-blue dark:text-ios-blueDark">0%</span>
+                </div>
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                    <div id="dash-goal-bar" class="bg-ios-blue dark:bg-ios-blueDark h-2.5 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div>
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-semibold text-lg">Recent Work</h3>
+                    <button onclick="switchTab('calendar')" class="text-sm text-ios-blue dark:text-ios-blueDark">See All</button>
+                </div>
+                <div id="dash-recent-list" class="space-y-3">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </main>
+
+        <!-- ================= SCREEN 2: CALENDAR ================= -->
+        <main id="screen-calendar" class="screen px-4">
+            <!-- Calendar Header -->
+            <div class="flex justify-between items-center mb-4 px-2">
+                <button onclick="changeMonth(-1)" class="p-2 btn-haptic"><i data-lucide="chevron-left"></i></button>
+                <h2 id="cal-month-year" class="text-lg font-semibold">October 2023</h2>
+                <button onclick="changeMonth(1)" class="p-2 btn-haptic"><i data-lucide="chevron-right"></i></button>
+            </div>
+
+            <!-- Calendar Grid -->
+            <div class="bg-ios-card dark:bg-ios-cardDark rounded-2xl p-4 shadow-ios dark:shadow-ios-dark mb-6">
+                <div class="cal-grid mb-2 text-ios-gray text-xs font-semibold">
+                    <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
+                </div>
+                <div id="cal-days" class="cal-grid">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Daily Summary -->
+            <div class="flex justify-between items-end mb-3 px-2">
+                <h3 id="cal-selected-date-text" class="font-semibold text-lg">Selected Date</h3>
+                <span id="cal-selected-total" class="font-bold text-ios-blue dark:text-ios-blueDark"></span>
+            </div>
+            
+            <div id="cal-day-records" class="space-y-3">
+                <!-- Populated by JS -->
+            </div>
+
+            <!-- Floating Add Button (Specific to Calendar) -->
+            <button onclick="openAddModal()" class="fixed bottom-[110px] right-6 w-14 h-14 bg-ios-blue dark:bg-ios-blueDark text-white rounded-full shadow-lg flex items-center justify-center btn-haptic z-40">
+                <i data-lucide="plus" class="w-6 h-6"></i>
+            </button>
+        </main>
+
+        <!-- ================= SCREEN 3: SETTINGS ================= -->
+        <main id="screen-settings" class="screen px-4">
+            
+            <h3 class="text-sm font-medium text-ios-gray uppercase tracking-wider ml-4 mb-2 mt-4">Pay & Goals</h3>
+            <div class="ios-list">
+                <div class="ios-list-item">
+                    <span>Hourly Rate</span>
+                    <div class="flex items-center">
+                        <span class="text-ios-gray mr-1" id="set-currency-symbol">$</span>
+                        <input type="number" id="set-rate" class="ios-input font-semibold" value="15.00" step="0.5">
+                    </div>
+                </div>
+                <div class="ios-list-item">
+                    <span>Currency</span>
+                    <select id="set-currency" class="bg-transparent text-right text-ios-gray outline-none dir-rtl font-semibold">
+                        <option value="$">USD ($)</option>
+                        <option value="€">EUR (€)</option>
+                        <option value="£">GBP (£)</option>
+                        <option value="¥">JPY (¥)</option>
+                    </select>
+                </div>
+                <div class="ios-list-item">
+                    <span>Default Travel Expense</span>
+                    <div class="flex items-center">
+                        <span class="text-ios-gray mr-1" id="set-currency-symbol-travel">$</span>
+                        <input type="number" id="set-travel" class="ios-input font-semibold" value="0.00" step="1">
+                    </div>
+                </div>
+                <div class="ios-list-item">
+                    <span>Weekly Goal (Hours)</span>
+                    <input type="number" id="set-goal" class="ios-input font-semibold" value="20" step="1">
+                </div>
+            </div>
+
+            <h3 class="text-sm font-medium text-ios-gray uppercase tracking-wider ml-4 mb-2 mt-6">Preferences</h3>
+            <div class="ios-list">
+                <div class="ios-list-item">
+                    <span>Appearance</span>
+                    <select id="set-theme" class="bg-transparent text-right text-ios-gray outline-none font-semibold">
+                        <option value="system">System</option>
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                    </select>
+                </div>
+            </div>
+
+            <h3 class="text-sm font-medium text-ios-gray uppercase tracking-wider ml-4 mb-2 mt-6">Data Management</h3>
+            <div class="ios-list">
+                <button onclick="exportData()" class="ios-list-item w-full text-ios-blue dark:text-ios-blueDark btn-haptic">
+                    <span>Export Data (JSON)</span>
+                    <i data-lucide="download" class="w-4 h-4 opacity-50"></i>
+                </button>
+                <button onclick="clearData()" class="ios-list-item w-full text-ios-red btn-haptic">
+                    <span>Reset All Data</span>
+                    <i data-lucide="trash-2" class="w-4 h-4 opacity-50"></i>
+                </button>
+            </div>
+            
+            <p class="text-center text-xs text-ios-gray mt-8 mb-4">Version 1.0.0<br>Built for iPhone 15 Pro</p>
+        </main>
+
+        <!-- ================= BOTTOM TAB BAR ================= -->
+        <nav class="tab-bar">
+            <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="tab-item active">
+                <i data-lucide="layout-dashboard" class="w-6 h-6"></i>
+                <span>Dashboard</span>
+            </button>
+            <button onclick="switchTab('calendar')" id="tab-btn-calendar" class="tab-item">
+                <i data-lucide="calendar" class="w-6 h-6"></i>
+                <span>Calendar</span>
+            </button>
+            <button onclick="switchTab('settings')" id="tab-btn-settings" class="tab-item">
+                <i data-lucide="settings" class="w-6 h-6"></i>
+                <span>Settings</span>
+            </button>
+        </nav>
+
+        <!-- ================= ADD RECORD BOTTOM SHEET ================= -->
+        <div id="add-sheet-overlay" class="bottom-sheet-overlay" onclick="closeAddModal()"></div>
+        <div id="add-sheet" class="bottom-sheet">
+            <div class="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-800">
+                <button onclick="closeAddModal()" class="text-ios-blue dark:text-ios-blueDark font-medium btn-haptic">Cancel</button>
+                <h3 class="font-bold text-lg">Add Work</h3>
+                <button onclick="saveRecord()" class="text-ios-blue dark:text-ios-blueDark font-bold btn-haptic">Save</button>
+            </div>
+            
+            <div class="p-4 overflow-y-auto" style="max-height: calc(90vh - 60px);">
+                <div class="ios-list">
+                    <div class="ios-list-item">
+                        <span>Date</span>
+                        <input type="date" id="form-date" class="bg-transparent text-right font-semibold outline-none text-ios-blue dark:text-ios-blueDark">
+                    </div>
+                </div>
+
+                <div class="ios-list">
+                    <div class="ios-list-item">
+                        <span>Start Time</span>
+                        <input type="time" id="form-start" value="09:00" class="bg-transparent text-right font-semibold outline-none text-black dark:text-white">
+                    </div>
+                    <div class="ios-list-item">
+                        <span>End Time</span>
+                        <input type="time" id="form-end" value="17:00" class="bg-transparent text-right font-semibold outline-none text-black dark:text-white">
+                    </div>
+                    <div class="ios-list-item">
+                        <span>Break (mins)</span>
+                        <input type="number" id="form-break" value="60" class="ios-input font-semibold">
+                    </div>
+                </div>
+
+                <div class="ios-list">
+                    <div class="ios-list-item">
+                        <span>Travel Expense</span>
+                        <div class="flex items-center">
+                            <span class="text-ios-gray mr-1 form-currency-symbol">$</span>
+                            <input type="number" id="form-travel" value="0" step="0.5" class="ios-input font-semibold">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ios-list">
+                    <div class="flex flex-col p-3">
+                        <span class="mb-2 text-sm text-ios-gray">Notes</span>
+                        <textarea id="form-notes" rows="3" class="bg-transparent outline-none resize-none text-sm w-full" placeholder="Optional details..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Live Preview -->
+                <div class="mt-6 bg-ios-blue/10 dark:bg-ios-blueDark/20 rounded-xl p-4 flex justify-between items-center border border-ios-blue/20">
+                    <div class="text-sm">
+                        <p class="text-ios-gray mb-1">Estimated Earnings</p>
+                        <p id="form-preview-hours" class="font-medium text-ios-blue dark:text-ios-blueDark">0.0 hrs</p>
+                    </div>
+                    <div class="text-right">
+                        <p id="form-preview-salary" class="text-2xl font-bold text-ios-blue dark:text-ios-blueDark">$0.00</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        // --- State Management ---
+        const DEFAULT_SETTINGS = {
+            rate: 15.00,
+            currency: '$',
+            defaultTravel: 5.00,
+            goal: 20,
+            theme: 'system'
+        };
+
+        let state = {
+            settings: { ...DEFAULT_SETTINGS },
+            records: [], // { id, date: 'YYYY-MM-DD', start, end, breakMins, travel, notes }
+            currentTab: 'dashboard',
+            selectedDate: new Date(),
+            calendarDate: new Date()
+        };
+
+        // --- Initialization ---
+        function init() {
+            lucide.createIcons();
+            loadData();
+            applyTheme();
+            setupEventListeners();
+            updateUI();
+        }
+
+        // --- Data Persistence ---
+        function loadData() {
+            const savedSettings = localStorage.getItem('ptw_settings');
+            const savedRecords = localStorage.getItem('ptw_records');
+            
+            if (savedSettings) state.settings = { ...DEFAULT_SETTINGS, ...JSON.parse(savedSettings) };
+            if (savedRecords) state.records = JSON.parse(savedRecords);
+            
+            // Sync settings UI
+            document.getElementById('set-rate').value = state.settings.rate;
+            document.getElementById('set-currency').value = state.settings.currency;
+            document.getElementById('set-travel').value = state.settings.defaultTravel;
+            document.getElementById('set-goal').value = state.settings.goal;
+            document.getElementById('set-theme').value = state.settings.theme;
+            
+            updateCurrencySymbols();
+        }
+
+        function saveData() {
+            localStorage.setItem('ptw_settings', JSON.stringify(state.settings));
+            localStorage.setItem('ptw_records', JSON.stringify(state.records));
+            updateUI();
+        }
+
+        function clearData() {
+            if(confirm("Are you sure you want to delete all records? This cannot be undone.")) {
+                state.records = [];
+                saveData();
+            }
+        }
+
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href",     dataStr);
+            downloadAnchorNode.setAttribute("download", "work_tracker_backup.json");
+            document.body.appendChild(downloadAnchorNode); // required for firefox
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        // --- Core Logic & Math ---
+        function calculateHours(start, end, breakMins) {
+            if (!start || !end) return 0;
+            const [sH, sM] = start.split(':').map(Number);
+            const [eH, eM] = end.split(':').map(Number);
+            
+            let sTime = sH * 60 + sM;
+            let eTime = eH * 60 + eM;
+            
+            // Handle overnight shifts
+            if (eTime < sTime) {
+                eTime += 24 * 60;
+            }
+            
+            let totalMins = (eTime - sTime) - Number(breakMins || 0);
+            return Math.max(0, totalMins / 60);
+        }
+
+        function calculateSalary(hours, travel) {
+            return (hours * state.settings.rate) + Number(travel || 0);
+        }
+
+        function formatMoney(amount) {
+            return parseFloat(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        // --- Navigation ---
+        function switchTab(tabId) {
+            state.currentTab = tabId;
+            
+            // Update Headers
+            const titles = { dashboard: 'Dashboard', calendar: 'Calendar', settings: 'Settings' };
+            document.getElementById('header-title').innerText = titles[tabId];
+            
+            // Update Tab Bar UI
+            document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(`tab-btn-${tabId}`).classList.add('active');
+            
+            // Update Screens with animation
+            document.querySelectorAll('.screen').forEach(el => {
+                if (el.id === `screen-${tabId}`) {
+                    el.style.display = 'block';
+                    // Force reflow
+                    void el.offsetWidth;
+                    el.classList.add('active');
+                } else {
+                    el.classList.remove('active');
+                    setTimeout(() => {
+                        if(!el.classList.contains('active')) el.style.display = 'none';
+                    }, 300); // match css transition
+                }
+            });
+
+            // Extra Logic per tab
+            if (tabId === 'calendar') renderCalendar();
+        }
+
+        // --- Theme Management ---
+        function applyTheme() {
+            const t = state.settings.theme;
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const html = document.documentElement;
+            
+            if (t === 'dark' || (t === 'system' && prefersDark)) {
+                html.classList.add('dark');
+            } else {
+                html.classList.remove('dark');
+            }
+        }
+        
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            if(state.settings.theme === 'system') applyTheme();
+        });
+
+        // --- UI Updaters ---
+        function updateUI() {
+            updateDashboard();
+            if (state.currentTab === 'calendar') renderCalendar();
+            renderSelectedDayRecords();
+        }
+
+        function updateCurrencySymbols() {
+            const sym = state.settings.currency;
+            document.getElementById('dash-currency').innerText = sym;
+            document.getElementById('set-currency-symbol').innerText = sym;
+            document.getElementById('set-currency-symbol-travel').innerText = sym;
+            document.querySelectorAll('.form-currency-symbol').forEach(el => el.innerText = sym);
+        }
+
+        // --- Dashboard Logic ---
+        function updateDashboard() {
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            
+            let monthHours = 0;
+            let monthTravel = 0;
+            let monthShifts = 0;
+            let weekHours = 0;
+
+            // Get start of week (Sunday)
+            const startOfWeek = new Date(now);
+            startOfWeek.setDate(now.getDate() - now.getDay());
+            startOfWeek.setHours(0,0,0,0);
+
+            let recentRecords = [...state.records].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            recentRecords.forEach(rec => {
+                const recDate = new Date(rec.date);
+                const hrs = calculateHours(rec.start, rec.end, rec.breakMins);
+                
+                // Month Stats
+                if (recDate.getMonth() === currentMonth && recDate.getFullYear() === currentYear) {
+                    monthHours += hrs;
+                    monthTravel += Number(rec.travel);
+                    monthShifts++;
+                }
+
+                // Week Stats
+                if (recDate >= startOfWeek && recDate <= now) {
+                    weekHours += hrs;
+                }
+            });
+
+            const monthSalary = (monthHours * state.settings.rate) + monthTravel;
+            const avgRate = monthHours > 0 ? monthSalary / monthHours : 0;
+
+            // Update DOM
+            document.getElementById('dash-total-salary').innerText = formatMoney(monthSalary);
+            document.getElementById('dash-total-hours').innerHTML = `${monthHours.toFixed(1)}<span class="text-sm font-normal text-ios-gray">h</span>`;
+            document.getElementById('dash-total-shifts').innerText = monthShifts;
+            document.getElementById('dash-total-travel').innerText = formatMoney(monthTravel);
+            document.getElementById('dash-avg-rate').innerText = `${state.settings.currency}${formatMoney(avgRate)}`;
+
+            // Goal Progress
+            const goal = state.settings.goal;
+            const progress = Math.min(100, Math.round((weekHours / goal) * 100)) || 0;
+            document.getElementById('dash-goal-text').innerText = `${weekHours.toFixed(1)} / ${goal} hours`;
+            document.getElementById('dash-goal-percent').innerText = `${progress}%`;
+            document.getElementById('dash-goal-bar').style.width = `${progress}%`;
+            
+            // Color bar green if goal met
+            if(progress >= 100) {
+                document.getElementById('dash-goal-bar').classList.remove('bg-ios-blue', 'dark:bg-ios-blueDark');
+                document.getElementById('dash-goal-bar').classList.add('bg-ios-green');
+            } else {
+                document.getElementById('dash-goal-bar').classList.add('bg-ios-blue', 'dark:bg-ios-blueDark');
+                document.getElementById('dash-goal-bar').classList.remove('bg-ios-green');
+            }
+
+            // Recent List (top 3)
+            const listEl = document.getElementById('dash-recent-list');
+            listEl.innerHTML = '';
+            if (recentRecords.length === 0) {
+                listEl.innerHTML = `<p class="text-sm text-ios-gray italic text-center py-4">No recent work recorded.</p>`;
+            } else {
+                recentRecords.slice(0, 3).forEach(rec => {
+                    const hrs = calculateHours(rec.start, rec.end, rec.breakMins);
+                    const sal = calculateSalary(hrs, rec.travel);
+                    const dateObj = new Date(rec.date);
+                    const dateStr = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                    
+                    listEl.innerHTML += `
+                        <div class="bg-ios-card dark:bg-ios-cardDark rounded-xl p-3 flex justify-between items-center shadow-sm">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-ios-bg dark:bg-black flex items-center justify-center text-ios-blue dark:text-ios-blueDark">
+                                    <i data-lucide="calendar-check" class="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <p class="font-semibold text-sm">${dateStr}</p>
+                                    <p class="text-xs text-ios-gray">${rec.start} - ${rec.end} • ${hrs.toFixed(1)}h</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-bold text-sm">${state.settings.currency}${formatMoney(sal)}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+                lucide.createIcons();
+            }
+        }
+
+        // --- Calendar Logic ---
+        function changeMonth(delta) {
+            state.calendarDate.setMonth(state.calendarDate.getMonth() + delta);
+            renderCalendar();
+        }
+
+        function renderCalendar() {
+            const year = state.calendarDate.getFullYear();
+            const month = state.calendarDate.getMonth();
+            
+            document.getElementById('cal-month-year').innerText = new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            const daysGrid = document.getElementById('cal-days');
+            daysGrid.innerHTML = '';
+
+            // Blank days before start
+            for (let i = 0; i < firstDay; i++) {
+                daysGrid.innerHTML += `<div></div>`;
+            }
+
+            // Create a set of dates that have records for fast lookup
+            const workDates = new Set(state.records.map(r => r.date));
+            
+            const selectedDateStr = state.selectedDate.toISOString().split('T')[0];
+
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                const hasWork = workDates.has(dateStr);
+                const isSelected = dateStr === selectedDateStr;
+                
+                // Check if it's today
+                const isToday = dateStr === new Date().toISOString().split('T')[0];
+                let textClass = isToday ? 'text-ios-blue dark:text-ios-blueDark font-bold' : '';
+                if(isSelected) textClass = ''; // let selected style override
+
+                daysGrid.innerHTML += `
+                    <div class="cal-day ${hasWork ? 'has-work' : ''} ${isSelected ? 'selected' : ''} ${textClass}" 
+                         onclick="selectDate('${dateStr}')">
+                        ${i}
+                    </div>
+                `;
+            }
+            renderSelectedDayRecords();
+        }
+
+        function selectDate(dateStr) {
+            // Adjust timezone offset to prevent date shifting
+            const [y, m, d] = dateStr.split('-');
+            state.selectedDate = new Date(y, m-1, d);
+            renderCalendar(); // re-render to update selected styling
+        }
+
+        function renderSelectedDayRecords() {
+            const dateStr = state.selectedDate.toISOString().split('T')[0];
+            const displayDate = state.selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+            
+            document.getElementById('cal-selected-date-text').innerText = displayDate;
+            
+            const dayRecords = state.records.filter(r => r.date === dateStr);
+            const listEl = document.getElementById('cal-day-records');
+            listEl.innerHTML = '';
+
+            let dailyTotalSal = 0;
+
+            if (dayRecords.length === 0) {
+                listEl.innerHTML = `
+                    <div class="bg-ios-card dark:bg-ios-cardDark rounded-xl p-6 text-center shadow-sm">
+                        <i data-lucide="calendar-x-2" class="w-10 h-10 mx-auto text-ios-gray/50 mb-2"></i>
+                        <p class="text-ios-gray">No work recorded for this day.</p>
+                        <button onclick="openAddModal()" class="mt-3 text-sm font-semibold text-ios-blue dark:text-ios-blueDark bg-ios-blue/10 px-4 py-2 rounded-full">Add Shift</button>
+                    </div>`;
+                document.getElementById('cal-selected-total').innerText = '';
+            } else {
+                dayRecords.forEach(rec => {
+                    const hrs = calculateHours(rec.start, rec.end, rec.breakMins);
+                    const sal = calculateSalary(hrs, rec.travel);
+                    dailyTotalSal += sal;
+                    
+                    listEl.innerHTML += `
+                        <div class="bg-ios-card dark:bg-ios-cardDark rounded-2xl p-4 shadow-sm border border-transparent relative overflow-hidden group">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <p class="font-bold text-lg">${rec.start} - ${rec.end}</p>
+                                    <p class="text-sm text-ios-gray">${hrs.toFixed(1)} hrs • ${rec.breakMins}m break</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="font-bold text-lg text-ios-green">${state.settings.currency}${formatMoney(sal)}</p>
+                                    ${Number(rec.travel) > 0 ? `<p class="text-xs text-ios-gray">+${state.settings.currency}${formatMoney(rec.travel)} travel</p>` : ''}
+                                </div>
+                            </div>
+                            ${rec.notes ? `<p class="text-sm bg-gray-50 dark:bg-white/5 p-2 rounded-lg mt-2">${rec.notes}</p>` : ''}
+                            
+                            <button onclick="deleteRecord('${rec.id}')" class="absolute top-4 right-4 bg-red-100 text-red-600 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    `;
+                });
+                document.getElementById('cal-selected-total').innerText = `${state.settings.currency}${formatMoney(dailyTotalSal)}`;
+            }
+            lucide.createIcons();
+        }
+
+        // --- Add Record Modal ---
+        function openAddModal() {
+            // Pre-fill form
+            const dateStr = state.selectedDate.toISOString().split('T')[0];
+            document.getElementById('form-date').value = dateStr;
+            document.getElementById('form-travel').value = state.settings.defaultTravel;
+            
+            // Show modal
+            document.getElementById('add-sheet-overlay').classList.add('active');
+            document.getElementById('add-sheet').classList.add('active');
+            updateFormPreview();
+        }
+
+        function closeAddModal() {
+            document.getElementById('add-sheet-overlay').classList.remove('active');
+            document.getElementById('add-sheet').classList.remove('active');
+        }
+
+        function updateFormPreview() {
+            const start = document.getElementById('form-start').value;
+            const end = document.getElementById('form-end').value;
+            const breakMins = document.getElementById('form-break').value;
+            const travel = document.getElementById('form-travel').value;
+            
+            const hrs = calculateHours(start, end, breakMins);
+            const sal = calculateSalary(hrs, travel);
+            
+            document.getElementById('form-preview-hours').innerText = `${hrs.toFixed(2)} hrs`;
+            document.getElementById('form-preview-salary').innerText = `${state.settings.currency}${formatMoney(sal)}`;
+        }
+
+        function saveRecord() {
+            const newRecord = {
+                id: 'rec_' + Date.now().toString(36) + Math.random().toString(36).substr(2),
+                date: document.getElementById('form-date').value,
+                start: document.getElementById('form-start').value,
+                end: document.getElementById('form-end').value,
+                breakMins: document.getElementById('form-break').value,
+                travel: document.getElementById('form-travel').value,
+                notes: document.getElementById('form-notes').value
+            };
+
+            if(!newRecord.date || !newRecord.start || !newRecord.end) {
+                alert("Please fill required fields.");
+                return;
+            }
+
+            state.records.push(newRecord);
+            
+            // Select the date we just added a record to
+            const [y, m, d] = newRecord.date.split('-');
+            state.selectedDate = new Date(y, m-1, d);
+            state.calendarDate = new Date(y, m-1, 1); // ensure calendar shows right month
+
+            saveData();
+            closeAddModal();
+            
+            // Provide haptic-like visual feedback on successful save
+            const btn = document.querySelector(`button[onclick="saveRecord()"]`);
+            const originalText = btn.innerText;
+            btn.innerText = "Done!";
+            btn.classList.add("text-ios-green");
+            setTimeout(() => {
+                btn.innerText = originalText;
+                btn.classList.remove("text-ios-green");
+            }, 1000);
+        }
+
+        function deleteRecord(id) {
+            if(confirm("Delete this shift?")) {
+                state.records = state.records.filter(r => r.id !== id);
+                saveData();
+            }
+        }
+
+        // --- Event Listeners Setup ---
+        function setupEventListeners() {
+            // Settings inputs
+            const settingIds = ['set-rate', 'set-currency', 'set-travel', 'set-goal', 'set-theme'];
+            settingIds.forEach(id => {
+                document.getElementById(id).addEventListener('change', (e) => {
+                    const key = id.replace('set-', '');
+                    let val = e.target.value;
+                    if(['rate', 'travel', 'goal'].includes(key)) val = Number(val);
+                    
+                    // specific mapping because naming differs slightly
+                    if(key === 'travel') state.settings.defaultTravel = val;
+                    else state.settings[key] = val;
+                    
+                    if(key === 'theme') applyTheme();
+                    if(key === 'currency') updateCurrencySymbols();
+                    
+                    saveData();
+                });
+            });
+
+            // Form Live Preview
+            const formInputs = ['form-start', 'form-end', 'form-break', 'form-travel'];
+            formInputs.forEach(id => {
+                document.getElementById(id).addEventListener('input', updateFormPreview);
+            });
+        }
+
+        // Boot
+        document.addEventListener('DOMContentLoaded', init);
+
+    </script>
+</body>
+</html>
